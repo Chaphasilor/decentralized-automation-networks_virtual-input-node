@@ -103,9 +103,9 @@ pub fn main() -> () {
 
     let mut target = SocketAddr::from(format!("{}:{}", config.target_ip, config.target_port).parse::<SocketAddr>().expect("No valid target address given. Use format: <ip>:<port>"));
 
-    let outbound_socket = UdpSocket::bind(format!("127.0.0.1:{}", config.outbound_port)).expect("Couldn't bind outbound socket");
+    let outbound_socket = UdpSocket::bind(format!("0.0.0.0:{}", config.outbound_port)).expect("Couldn't bind outbound socket");
 
-    let inbound_socket = UdpSocket::bind(format!("127.0.0.1:{}", config.inbound_port)).expect("Couldn't bind inbound socket");
+    let inbound_socket = UdpSocket::bind(format!("0.0.0.0:{}", config.inbound_port)).expect("Couldn't bind inbound socket");
     let timeout = Duration::from_millis(10);
     inbound_socket.set_read_timeout(timeout.into()).expect("Couldn't set socket timeout");
 
