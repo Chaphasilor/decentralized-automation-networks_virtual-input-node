@@ -2,5 +2,5 @@ area: room1
 flow_name: Flow 1
 target_ip: 127.0.0.1
 target_port: 33001
-outbound_port: 22001
+outbound_port_data: 22001
 inbound_port: 21001
