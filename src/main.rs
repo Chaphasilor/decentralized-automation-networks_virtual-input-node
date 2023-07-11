@@ -65,6 +65,7 @@ async fn main() {
     let args = Args::parse();
     let config: Config;
 
+    // load config form file and apply overwrites if given
     match args.config {
         Some(config_path) => {
             match load_config(config_path.as_str()).as_mut() {
@@ -118,7 +119,7 @@ async fn main() {
 
     let target_data_clone = target.clone();
 
-    // send input data
+    // generate and send input data
     tasks.push(tokio::spawn(async move {
 
         let mut interval = time::interval(Duration::from_millis(config.interval.unwrap()));
