@@ -60,7 +60,7 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() -> () {
+async fn main() {
 
     let args = Args::parse();
     let config: Config;
@@ -69,23 +69,14 @@ async fn main() -> () {
         Some(config_path) => {
             match load_config(config_path.as_str()).as_mut() {
                 Ok(loaded_config) => {
-                    match loaded_config.outbound_port_acks {
-                        None => {
-                            loaded_config.outbound_port_acks = Some(args.outbound_port_acks);
-                        },
-                        _ => {},
+                    if loaded_config.outbound_port_acks.is_none() {
+                        loaded_config.outbound_port_acks = Some(args.outbound_port_acks);
                     }
-                    match loaded_config.interval {
-                        None => {
-                            loaded_config.interval = Some(args.interval);
-                        },
-                        _ => {},
+                    if loaded_config.interval.is_none() {
+                        loaded_config.interval = Some(args.interval);
                     }
-                    match loaded_config.inbound_poll_interval {
-                        None => {
-                            loaded_config.inbound_poll_interval = Some(args.inbound_poll_interval);
-                        },
-                        _ => {},
+                    if loaded_config.inbound_poll_interval.is_none() {
+                        loaded_config.inbound_poll_interval = Some(args.inbound_poll_interval);
                     }
                     
                     config = loaded_config.clone();
@@ -100,9 +91,9 @@ async fn main() -> () {
         None => {
             // create config from args
             config = Config{
-                area: args.area.expect("Argument `area` is required unless a config file is specified!").clone(),
-                flow_name: args.flow.expect("Argument `flow` is required unless a config file is specified!").clone(),
-                target_ip: args.target_ip.expect("Argument `target_ip` is required unless a config file is specified!").clone(),
+                area: args.area.expect("Argument `area` is required unless a config file is specified!"),
+                flow_name: args.flow.expect("Argument `flow` is required unless a config file is specified!"),
+                target_ip: args.target_ip.expect("Argument `target_ip` is required unless a config file is specified!"),
                 target_port: args.target_port.expect("Argument `target_port` is required unless a config file is specified!"),
                 outbound_port_data: args.outbound_port_data.expect("Argument `outbound_port_data` is required unless a config file is specified!"),
                 outbound_port_acks: Some(args.outbound_port_acks),
@@ -115,14 +106,11 @@ async fn main() -> () {
 
     println!("Starting input node for flow '{}' @ area '{}'", config.flow_name, config.area);
 
-    let target: Arc<Mutex<SocketAddr>> = Arc::new(Mutex::new(SocketAddr::from(format!("{}:{}", config.target_ip, config.target_port).parse::<SocketAddr>().expect("No valid target address given. Use format: <ip>:<port>"))));
+    let target: Arc<Mutex<SocketAddr>> = Arc::new(Mutex::new(format!("{}:{}", config.target_ip, config.target_port).parse::<SocketAddr>().expect("No valid target address given. Use format: <ip>:<port>")));
 
     let outbound_socket_data = UdpSocket::bind(format!("0.0.0.0:{}", config.outbound_port_data)).await.expect("Couldn't bind outbound socket");
     let outbound_socket_acks = UdpSocket::bind(format!("0.0.0.0:{}", config.outbound_port_acks.unwrap())).await.expect("Couldn't bind outbound socket");
     let inbound_socket = UdpSocket::bind(format!("0.0.0.0:{}", config.inbound_port)).await.expect("Couldn't bind inbound socket");
-    // let timeout = Duration::from_millis(10);
-    // inbound_socket.set_read_timeout(timeout.into()).expect("Couldn't set socket timeout");
-
 
     let mut buf = [0; 1024];
 
@@ -149,9 +137,9 @@ async fn main() -> () {
                 }
             });
             
-            let target = target_data_clone.lock().unwrap().clone();
+            let target = *target_data_clone.lock().unwrap();
             println!("Sending data to {}: {}", target, data);
-            outbound_socket_data.send_to(&json.to_string().as_bytes(), target).await.expect("Couldn't send data");
+            outbound_socket_data.send_to(json.to_string().as_bytes(), target).await.expect("Couldn't send data");
 
         }
     }));
@@ -176,11 +164,11 @@ async fn main() -> () {
 
                         // take 10k part from the new target port and fill the rest with the old one
                         let new_target_port_base = json["target_port_base"].as_u64().expect("No target base port given") as u16;
-                        let new_target_port = new_target_port_base + ((config.target_port % 10000) as u16);
+                        let new_target_port = new_target_port_base + (config.target_port % 10000);
                         println!("New target port: {}", new_target_port);
 
                         let new_target_address_string = format!("{}:{}", json["target"].as_str().expect("No target ip given"), new_target_port);
-                        let new_target_address = SocketAddr::from(new_target_address_string.parse::<SocketAddr>().expect(format!("Target not updated because target address was invalid: {}", new_target_address_string).as_str()));
+                        let new_target_address = new_target_address_string.parse::<SocketAddr>().unwrap_or_else(|_| panic!("Target not updated because target address was invalid: {}", new_target_address_string));
                         {
                             let mut target = target_updates_clone.lock().unwrap();
                             *target = new_target_address;
@@ -194,7 +182,7 @@ async fn main() -> () {
                         println!("Sending ACK to {}: {}", src, json.to_string());
                         // send 10 times to "make sure" it arrives
                         for _ in 0..10 {
-                            outbound_socket_acks.send_to(&json.to_string().as_bytes(), src).await.expect("Couldn't send ACK");
+                            outbound_socket_acks.send_to(json.to_string().as_bytes(), src).await.expect("Couldn't send ACK");
                         }
                     }
                 } 
@@ -214,8 +202,7 @@ async fn main() -> () {
 
 fn generate_input_data() -> u16 {
     // generate a random number
-    let random_number = rand::random::<u16>();
-    random_number
+    rand::random::<u16>()
 }
 
 fn load_config(path: &str) -> Result<Config, Box<dyn Error>> {
